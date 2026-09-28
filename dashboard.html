@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Partner Development Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --bg:#0e1a1f; --panel:#132530; --panel2:#15303a;
+    --ink:#eaf3f2; --sub:#9fb8ba; --line:#22414a;
+    --teal:#2ec4b6; --amber:#f0a04b; --coral:#e8636a; --violet:#8d7ae0;
+    box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  @media (prefers-color-scheme: light){
+    :root:not([data-theme="dark"]){ --bg:#f4f7f6; --panel:#ffffff; --panel2:#eef5f4; --ink:#13282b; --sub:#5c7679; --line:#dbe6e5; }
+  }
+  :root[data-theme="dark"]{ --bg:#0e1a1f; --panel:#132530; --panel2:#15303a; --ink:#eaf3f2; --sub:#9fb8ba; --line:#22414a; }
+  html{scroll-padding-top:env(safe-area-inset-top,0px);}
+  *{box-sizing:border-box;}
+  body{ margin:0; background:var(--bg); color:var(--ink); font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif; min-height:100%; }
+  .wrap{max-width:1180px;margin:0 auto;padding:28px 20px 60px;}
+  header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:16px;border-bottom:1px solid var(--line);padding-bottom:18px;}
+  h1{font-size:1.5rem;margin:0 0 4px;letter-spacing:.2px;font-weight:700;}
+  header p{margin:0;color:var(--sub);font-size:.85rem;}
+  .ctrl{display:flex;flex-direction:column;gap:8px;align-items:flex-end;}
+  .badge{background:var(--panel2);border:1px solid var(--line);color:var(--teal);padding:6px 14px;border-radius:20px;font-size:.75rem;font-weight:600;white-space:nowrap;}
+  .btnrow{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;}
+  .btn{background:var(--panel2);border:1px solid var(--line);color:var(--ink);padding:7px 13px;border-radius:7px;font-size:.75rem;font-weight:600;cursor:pointer;}
+  .btn.primary{background:var(--teal);color:#06201d;border-color:var(--teal);}
+  .btn:hover{filter:brightness(1.1);}
+  input[type=file]{display:none;}
+  #status{font-size:.75rem;color:var(--sub);max-width:320px;text-align:right;}
+  #status.err{color:var(--coral);}
+  #status.ok{color:var(--teal);}
+  .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:24px;}
+  @media(max-width:920px){.kpis{grid-template-columns:repeat(3,1fr);}}
+  @media(max-width:560px){.kpis{grid-template-columns:repeat(2,1fr);}}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 14px 12px;}
+  .kpi .val{font-size:1.55rem;font-weight:700;line-height:1;}
+  .kpi .lbl{color:var(--sub);font-size:.72rem;margin-top:6px;line-height:1.3;}
+  .kpi.teal .val{color:var(--teal);} .kpi.amber .val{color:var(--amber);}
+  .kpi.coral .val{color:var(--coral);} .kpi.violet .val{color:var(--violet);}
+  .grid2{display:grid;grid-template-columns:1.5fr 1fr;gap:16px;margin-bottom:16px;}
+  @media(max-width:860px){.grid2{grid-template-columns:1fr;}}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px;}
+  .panel h2{font-size:.95rem;margin:0 0 14px;font-weight:600;display:flex;align-items:center;justify-content:space-between;}
+  .panel h2 span.tag{color:var(--sub);font-weight:400;font-size:.72rem;}
+  canvas{max-height:280px;}
+  table{width:100%;border-collapse:collapse;font-size:.8rem;}
+  thead th{text-align:left;color:var(--sub);font-weight:600;padding:8px 10px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel);}
+  tbody td{padding:7px 10px;border-bottom:1px solid var(--line);}
+  tbody tr:hover{background:var(--panel2);}
+  .tablewrap{max-height:420px;overflow:auto;border:1px solid var(--line);border-radius:8px;}
+  .num{text-align:right;font-variant-numeric:tabular-nums;}
+  .meet-list{list-style:none;margin:0;padding:0;max-height:280px;overflow:auto;}
+  .meet-list li{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:.8rem;}
+  .meet-list li:last-child{border-bottom:none;}
+  .meet-list .p{font-weight:600;}
+  .meet-list .d{color:var(--sub);white-space:nowrap;}
+  footer{margin-top:28px;color:var(--sub);font-size:.72rem;text-align:center;}
+  .pill{display:inline-block;padding:2px 8px;border-radius:12px;font-size:.7rem;font-weight:600;}
+  .pill.hi{background:rgba(46,196,182,.15);color:var(--teal);}
+  .pill.md{background:rgba(240,160,75,.15);color:var(--amber);}
+  .pill.lo{background:rgba(232,99,106,.12);color:var(--coral);}
+  .note{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px 14px;font-size:.75rem;color:var(--sub);margin-bottom:16px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Partner Development Dashboard</h1>
+      <p>Business Development activity log — partner sourcing, outreach &amp; meetings tracker</p>
+    </div>
+    <div class="ctrl">
+      <div class="badge" id="rangeBadge">Sample data</div>
+      <div class="btnrow">
+        <label class="btn primary" for="fileInput">📤 Upload Excel / CSV</label>
+        <input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
+        <button class="btn" id="templateBtn">⬇ Template</button>
+        <button class="btn" id="resetBtn">↺ Reset</button>
+      </div>
+      <div id="status">Showing sample data (08 Jul – 28 Sep 2026)</div>
+    </div>
+  </header>
+
+  <div class="note" id="formatNote">
+    Upload a sheet with one row per day and columns for: <b>Date</b>, <b>New Partners Added</b>, <b>Reached Out (New)</b>, <b>Reached Out (Follow-up)</b>, <b>Meetings</b>, <b>Meeting Names</b> (comma-separated), <b>Education Fair Partners</b>, <b>Channel Partners</b>. Column names are matched automatically — download the template for the exact headers.
+  </div>
+
+  <div class="panel" id="filterPanel" style="margin-bottom:16px;display:flex;gap:14px;align-items:center;flex-wrap:wrap;">
+    <div style="display:flex;gap:8px;align-items:center;">
+      <label for="fromDate" style="font-size:.75rem;color:var(--sub);">From</label>
+      <input type="date" id="fromDate" class="btn" style="cursor:pointer;">
+      <label for="toDate" style="font-size:.75rem;color:var(--sub);">To</label>
+      <input type="date" id="toDate" class="btn" style="cursor:pointer;">
+    </div>
+    <div class="btnrow" style="flex:1;">
+      <button class="btn" data-preset="7">Last 7 days</button>
+      <button class="btn" data-preset="30">Last 30 days</button>
+      <button class="btn" data-preset="90">Last 90 days</button>
+      <button class="btn primary" data-preset="all">All time</button>
+    </div>
+    <div id="filterStatus" style="font-size:.72rem;color:var(--sub);white-space:nowrap;"></div>
+  </div>
+
+  <div class="kpis" id="kpiRow"></div>
+
+  <div class="grid2">
+    <div class="panel"><h2>Daily Activity Trend <span class="tag">new adds vs. outreach</span></h2><canvas id="trendChart"></canvas></div>
+    <div class="panel"><h2>Cumulative Partners Added <span class="tag">running total</span></h2><canvas id="cumChart"></canvas></div>
+  </div>
+
+  <div class="grid2">
+    <div class="panel"><h2>Outreach Mix <span class="tag">new vs. follow-up contacts</span></h2><canvas id="mixChart"></canvas></div>
+    <div class="panel"><h2>Meetings Log <span class="tag" id="meetCount"></span></h2><ul class="meet-list" id="meetList"></ul></div>
+  </div>
+
+  <div class="panel" style="margin-bottom:16px;">
+    <h2>Special Pipelines <span class="tag">education fairs &amp; channel partners</span></h2>
+    <canvas id="specialChart"></canvas>
+  </div>
+
+  <div class="panel">
+    <h2>Daily Log <span class="tag" id="rowCount"></span></h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr>
+          <th>Date</th><th class="num">New Partners</th><th class="num">Reached (New)</th>
+          <th class="num">Reached (Follow-up)</th><th class="num">Meetings</th>
+          <th class="num">Edu Fair</th><th class="num">Channel</th><th>Momentum</th>
+        </tr></thead>
+        <tbody id="tblBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <footer>Partner Development Activity Dashboard · Internal use only · Upload your own sheet anytime to refresh the view</footer>
+</div>
+
+<script>
+const SEED = [{"date": "08-07-2026", "new_partners": 5, "reached_new": 3, "reached_already": 0, "meetings": 3, "meeting_names": ["College Batch", "keyword related and partners search related", "Virtual"], "edu_fair": 0, "channel_partners": 0}, {"date": "09-07-2026", "new_partners": 5, "reached_new": 3, "reached_already": 0, "meetings": 0, "meeting_names": [], "edu_fair": 0, "channel_partners": 0}, {"date": "10-07-2026", "new_partners": 5, "reached_new": 3, "reached_already": 0, "meetings": 1, "meeting_names": ["Kanhaiya"], "edu_fair": 0, "channel_partners": 0}, {"date": "13-07-2026", "new_partners": 5, "reached_new": 3, "reached_already": 2, "meetings": 0, "meeting_names": [], "edu_fair": 0, "channel_partners": 0}, {"date": "14-07-2026", "new_partners": 5, "reached_new": 3, "reached_already": 1, "meetings": 0, "meeting_names": [], "edu_fair": 0, "channel_partners": 0}, {"date": "15-07-2026", "new_partners": 5, "reached_new": 15, "reached_already": 0, "meetings": 1, "meeting_names": ["Vidushi"], "edu_fair": 0, "channel_partners": 0}, {"date": "16-07-2026", "new_partners": 5, "reached_new": 3, "reached_already": 2, "meetings": 1, "meeting_names": ["Baljeet"], "edu_fair": 0, "channel_partners": 0}, {"date": "17-07-2026", "new_partners": 5, "reached_new": 11, "reached_already": 0, "meetings": 1, "meeting_names": ["Jaskaran"], "edu_fair": 0, "channel_partners": 0}, {"date": "20-07-2026", "new_partners": 5, "reached_new": 5, "reached_already": 0, "meetings": 1, "meeting_names": ["Mayur and team"], "edu_fair": 0, "channel_partners": 0}, {"date": "21-07-2026", "new_partners": 5, "reached_new": 0, "reached_already": 10, "meetings": 0, "meeting_names": [], "edu_fair": 0, "channel_partners": 0}, {"date": "22-07-2026", "new_partners": 5, "reached_new": 0, "reached_already": 10, "meetings": 0, "meeting_names": [], "edu_fair": 0, "channel_partners": 0}, {"date": "23-07-2026", "new_partners": 5, "reached_new": 11, "reached_already": 4, "meetings": 1, "meeting_names": ["GetMyuni"], "edu_fair": 0, "channel_partners": 0}, {"date": "24-07-2026", "new_partners": 5, "reached_new": 0, "reached_already": 0, "meetings": 2, "meeting_names": ["Click2Commission", "HtMedia"], "edu_fair": 0, "channel_partners": 0}, {"date": "27-07-2026", "new_partners": 7, "reached_new": 21, "reached_already": 3, "meetings": 1, "meeting_names": ["College Hai"], "edu_fair": 0, "channel_partners": 0}, {"date": "28-07-2026", "new_partners": 5, "reached_new": 2, "reached_already": 8, "meetings": 2, "meeting_names": ["College Hai", "OctaadsMedia"], "edu_fair": 0, "channel_partners": 0}, {"date": "29-07-2026", "new_partners": 5, "reached_new": 7, "reached_already": 2, "meetings": 3, "meeting_names": ["College Hai", "Education World", "Education.com"], "edu_fair": 0, "channel_partners": 0}, {"date": "30-07-2026", "new_partners": 5, "reached_new": 7, "reached_already": 0, "meetings": 2, "meeting_names": ["Affanads", "CollegePucho"], "edu_fair": 0, "channel_partners": 0}, {"date": "31-07-2026", "new_partners": 5, "reached_new": 11, "reached_already": 0, "meetings": 0, "meeting_names": [], "edu_fair": 0, "channel_partners": 0}, {"date": "03-08-2026", "new_partners": 5, "reached_new": 7, "reached_already": 0, "meetings": 1, "meeting_names": ["CodeChef"], "edu_fair": 0, "channel_partners": 0}, {"date": "20-08-2026", "new_partners": 5, "reached_new": 9, "reached_already": 0, "meetings": 2, "meeting_names": ["Creative Gaga", "CollegesInfo"], "edu_fair": 3, "channel_partners": 0}, {"date": "21-08-2026", "new_partners": 5, "reached_new": 5, "reached_already": 0, "meetings": 0, "meeting_names": [], "edu_fair": 3, "channel_partners": 0}, {"date": "24-08-2026", "new_partners": 5, "reached_new": 6, "reached_already": 0, "meetings": 2, "meeting_names": ["CollegeHai", "MaatrDigital"], "edu_fair": 3, "channel_partners": 0}, {"date": "31-08-2026", "new_partners": 3, "reached_new": 0, "reached_already": 0, "meetings": 1, "meeting_names": ["Icubeswire"], "edu_fair": 2, "channel_partners": 3}, {"date": "01-09-2026", "new_partners": 4, "reached_new": 6, "reached_already": 0, "meetings": 0, "meeting_names": [], "edu_fair": 0, "channel_partners": 0}, {"date": "02-09-2026", "new_partners": 3, "reached_new": 10, "reached_already": 0, "meetings": 1, "meeting_names": ["Mobupps"], "edu_fair": 2, "channel_partners": 0}, {"date": "03-09-2026", "new_partners": 3, "reached_new": 17, "reached_already": 4, "meetings": 0, "meeting_names": [], "edu_fair": 2, "channel_partners": 20}, {"date": "07-09-2026", "new_partners": 3, "reached_new": 17, "reached_already": 5, "meetings": 2, "meeting_names": ["CAT King", "career launcher"], "edu_fair": 0, "channel_partners": 9}, {"date": "08-09-2026", "new_partners": 15, "reached_new": 41, "reached_already": 3, "meetings": 1, "meeting_names": ["CareerNaksha"], "edu_fair": 0, "channel_partners": 0}, {"date": "09-09-2026", "new_partners": 17, "reached_new": 18, "reached_already": 3, "meetings": 1, "meeting_names": ["Education world"], "edu_fair": 0, "channel_partners": 0}, {"date": "10-09-2026", "new_partners": 5, "reached_new": 10, "reached_already": 2, "meetings": 1, "meeting_names": ["CollegeSathi"], "edu_fair": 0, "channel_partners": 0}, {"date": "14-09-2026", "new_partners": 0, "reached_new": 10, "reached_already": 2, "meetings": 3, "meeting_names": ["College Batch", "Affnads", "All India Entrance Exam"], "edu_fair": 0, "channel_partners": 0}, {"date": "15-09-2026", "new_partners": 5, "reached_new": 3, "reached_already": 5, "meetings": 2, "meeting_names": ["SuggestCollege", "Eduplor"], "edu_fair": 0, "channel_partners": 0}, {"date": "16-09-2026", "new_partners": 0, "reached_new": 3, "reached_already": 5, "meetings": 1, "meeting_names": ["CollegeFinder"], "edu_fair": 0, "channel_partners": 0}, {"date": "17-09-2026", "new_partners": 5, "reached_new": 4, "reached_already": 5, "meetings": 2, "meeting_names": ["Brainlite Education Solution", "College For Me"], "edu_fair": 0, "channel_partners": 0}, {"date": "18-09-2026", "new_partners": 0, "reached_new": 10, "reached_already": 2, "meetings": 2, "meeting_names": ["College Reviewz", "EducateUsExpo"], "edu_fair": 0, "channel_partners": 0}, {"date": "21-09-2026", "new_partners": 5, "reached_new": 15, "reached_already": 3, "meetings": 1, "meeting_names": ["Vidya Vision"], "edu_fair": 0, "channel_partners": 0}, {"date": "22-09-2026", "new_partners": 5, "reached_new": 20, "reached_already": 2, "meetings": 1, "meeting_names": ["CollegeRank"], "edu_fair": 0, "channel_partners": 0}, {"date": "23-09-2026", "new_partners": 3, "reached_new": 0, "reached_already": 5, "meetings": 1, "meeting_names": ["EducateLogin"], "edu_fair": 0, "channel_partners": 0}, {"date": "24-09-2026", "new_partners": 5, "reached_new": 0, "reached_already": 5, "meetings": 0, "meeting_names": [], "edu_fair": 0, "channel_partners": 0}, {"date": "25-09-2026", "new_partners": 4, "reached_new": 5, "reached_already": 2, "meetings": 1, "meeting_names": ["MaatrDigital"], "edu_fair": 0, "channel_partners": 0}, {"date": "28-09-2026", "new_partners": 4, "reached_new": 9, "reached_already": 2, "meetings": 1, "meeting_names": ["Mashrise"], "edu_fair": 0, "channel_partners": 0}]
+;
+
+const COLMAP = {
+  date: ['date'],
+  new_partners: ['newpartnersadded','newpartners','partnersadded'],
+  reached_new: ['reachedoutnew','reachednewpartners','newoutreach','reachednew','outreachnew'],
+  reached_already: ['reachedoutfollowup','reachedalready','followup','followups','alreadytalked','reachedoutalready'],
+  meetings: ['meetings','meetingscount','meetingsdone','meetingscompleted'],
+  meeting_names: ['meetingnames','meetingpartners','meetingwith'],
+  edu_fair: ['educationfairpartners','educationfair','edufair','edufairpartners'],
+  channel_partners: ['channelpartners','channel'],
+};
+const norm = s => String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+
+function mapRows(rawRows){
+  if(!rawRows.length) throw new Error('Sheet is empty.');
+  const headers = Object.keys(rawRows[0]);
+  const normHeaders = headers.map(norm);
+  const find = keys => { for(const k of keys){ const i = normHeaders.indexOf(k); if(i>-1) return headers[i]; } return null; };
+  const col = {}; for(const field in COLMAP) col[field] = find(COLMAP[field]);
+  if(!col.date) throw new Error('No "Date" column found. Please include a Date column.');
+  return rawRows.map(r=>({
+    date: String(r[col.date]).trim(),
+    new_partners: Number(r[col.new_partners]||0) || 0,
+    reached_new: Number(r[col.reached_new]||0) || 0,
+    reached_already: Number(r[col.reached_already]||0) || 0,
+    meetings: Number(r[col.meetings]||0) || 0,
+    meeting_names: col.meeting_names && r[col.meeting_names] ? String(r[col.meeting_names]).split(',').map(s=>s.trim()).filter(Boolean) : [],
+    edu_fair: Number(r[col.edu_fair]||0) || 0,
+    channel_partners: Number(r[col.channel_partners]||0) || 0,
+  })).filter(r=>r.date && r.date!=='undefined');
+}
+
+let charts = {};
+let CURRENT = [];
+function destroyCharts(){ Object.values(charts).forEach(c=>c && c.destroy()); charts = {}; }
+
+function parseDMY(s){
+  const m = String(s).match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+  if(!m) return null;
+  return new Date(Number(m[3]), Number(m[2])-1, Number(m[1]));
+}
+function toISO(d){ if(!d) return ''; const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${day}`; }
+
+function setData(data){
+  CURRENT = data.slice().sort((a,b)=> (parseDMY(a.date)||0) - (parseDMY(b.date)||0));
+  const parsedDates = CURRENT.map(d=>parseDMY(d.date)).filter(Boolean);
+  if(parsedDates.length){
+    const minD = parsedDates[0], maxD = parsedDates[parsedDates.length-1];
+    const fromEl = document.getElementById('fromDate'), toEl = document.getElementById('toDate');
+    fromEl.min = toEl.min = toISO(minD); fromEl.max = toEl.max = toISO(maxD);
+    fromEl.value = toISO(minD); toEl.value = toISO(maxD);
+  }
+  applyFilters();
+}
+
+function applyFilters(){
+  const fromVal = document.getElementById('fromDate').value;
+  const toVal = document.getElementById('toDate').value;
+  const from = fromVal ? new Date(fromVal+'T00:00:00') : null;
+  const to = toVal ? new Date(toVal+'T23:59:59') : null;
+  const filtered = CURRENT.filter(d=>{
+    const dt = parseDMY(d.date); if(!dt) return false;
+    if(from && dt < from) return false;
+    if(to && dt > to) return false;
+    return true;
+  });
+  document.getElementById('filterStatus').textContent = `${filtered.length} of ${CURRENT.length} days shown`;
+  renderAll(filtered);
+}
+
+function renderAll(DATA, sourceLabel){
+  destroyCharts();
+  const labels = DATA.map(d=>d.date);
+  const newP = DATA.map(d=>d.new_partners), reachNew = DATA.map(d=>d.reached_new),
+        reachAlready = DATA.map(d=>d.reached_already), meetings = DATA.map(d=>d.meetings),
+        eduFair = DATA.map(d=>d.edu_fair), channel = DATA.map(d=>d.channel_partners);
+  const sum = a=>a.reduce((x,y)=>x+y,0);
+  const totalNew=sum(newP), totalReachNew=sum(reachNew), totalReachAlready=sum(reachAlready),
+        totalMeetings=sum(meetings), totalEdu=sum(eduFair), totalChannel=sum(channel);
+
+  document.getElementById('rangeBadge').textContent = labels.length ? `${labels[0]} – ${labels[labels.length-1]}` : 'No data';
+  document.getElementById('kpiRow').innerHTML = [
+    {v:totalNew,l:'New Partners Added',c:'teal'},{v:totalReachNew,l:'New Outreach Contacts',c:'amber'},
+    {v:totalReachAlready,l:'Follow-up Contacts',c:'violet'},{v:totalMeetings,l:'Meetings Completed',c:'coral'},
+    {v:totalChannel,l:'Channel Partners Added',c:'teal'},{v:totalEdu,l:'Education Fair Partners',c:'amber'},
+  ].map(k=>`<div class="kpi ${k.c}"><div class="val">${k.v}</div><div class="lbl">${k.l}</div></div>`).join('');
+
+  const gridColor = getComputedStyle(document.documentElement).getPropertyValue('--line').trim();
+  const teal='#2ec4b6', amber='#f0a04b', coral='#e8636a', violet='#8d7ae0';
+  Chart.defaults.color = getComputedStyle(document.documentElement).getPropertyValue('--sub').trim();
+  Chart.defaults.borderColor = gridColor; Chart.defaults.font.size = 11;
+
+  charts.trend = new Chart(document.getElementById('trendChart'), { type:'line', data:{labels,
+    datasets:[
+      {label:'New Partners Added', data:newP, borderColor:teal, backgroundColor:teal+'33', tension:.3, fill:true, pointRadius:0, borderWidth:2},
+      {label:'Reached Out (New)', data:reachNew, borderColor:amber, backgroundColor:'transparent', tension:.3, pointRadius:0, borderWidth:2},
+      {label:'Reached Out (Follow-up)', data:reachAlready, borderColor:violet, backgroundColor:'transparent', tension:.3, pointRadius:0, borderWidth:2, borderDash:[4,3]},
+    ]}, options:{responsive:true, interaction:{mode:'index',intersect:false}, plugins:{legend:{position:'top',labels:{boxWidth:10,padding:12}}}, scales:{x:{grid:{display:false}, ticks:{maxTicksLimit:10}}, y:{beginAtZero:true, grid:{color:gridColor}}}} });
+
+  let running=0; const cum = newP.map(v=>running+=v);
+  charts.cum = new Chart(document.getElementById('cumChart'), {type:'line', data:{labels, datasets:[{label:'Cumulative Partners', data:cum, borderColor:teal, backgroundColor:teal+'22', fill:true, tension:.35, pointRadius:0, borderWidth:2}]}, options:{responsive:true, plugins:{legend:{display:false}}, scales:{x:{grid:{display:false},ticks:{maxTicksLimit:8}}, y:{beginAtZero:true, grid:{color:gridColor}}}} });
+
+  charts.mix = new Chart(document.getElementById('mixChart'), {type:'doughnut', data:{labels:['New Contacts','Follow-up Contacts'], datasets:[{data:[totalReachNew,totalReachAlready], backgroundColor:[amber,violet], borderWidth:0}]}, options:{responsive:true, plugins:{legend:{position:'bottom',labels:{boxWidth:10,padding:14}}}} });
+
+  charts.special = new Chart(document.getElementById('specialChart'), {type:'bar', data:{labels, datasets:[
+      {label:'Education Fair Partners', data:eduFair, backgroundColor:amber, borderRadius:3, barPercentage:.7},
+      {label:'Channel Partners', data:channel, backgroundColor:coral, borderRadius:3, barPercentage:.7},
+    ]}, options:{responsive:true, plugins:{legend:{position:'top',labels:{boxWidth:10,padding:12}}}, scales:{x:{grid:{display:false},ticks:{maxTicksLimit:12}}, y:{beginAtZero:true, grid:{color:gridColor}}}} });
+
+  const meetItems = []; DATA.forEach(d=>(d.meeting_names||[]).forEach(n=>meetItems.push({name:n,date:d.date})));
+  document.getElementById('meetCount').textContent = meetItems.length + ' total';
+  document.getElementById('meetList').innerHTML = meetItems.slice().reverse().map(m=>`<li><span class="p">${m.name}</span><span class="d">${m.date}</span></li>`).join('') || '<li>No meetings logged</li>';
+
+  document.getElementById('rowCount').textContent = DATA.length + ' active days';
+  document.getElementById('tblBody').innerHTML = DATA.slice().reverse().map(d=>{
+    const score = d.new_partners + d.reached_new + d.reached_already + d.meetings*3;
+    const pill = score>=25 ? '<span class="pill hi">High</span>' : score>=10 ? '<span class="pill md">Steady</span>' : '<span class="pill lo">Light</span>';
+    return `<tr><td>${d.date}</td><td class="num">${d.new_partners}</td><td class="num">${d.reached_new}</td><td class="num">${d.reached_already}</td><td class="num">${d.meetings}</td><td class="num">${d.edu_fair}</td><td class="num">${d.channel_partners}</td><td>${pill}</td></tr>`;
+  }).join('');
+}
+
+function setStatus(msg, kind){ const el=document.getElementById('status'); el.textContent=msg; el.className = kind||''; }
+
+document.getElementById('fileInput').addEventListener('change', function(e){
+  const file = e.target.files[0]; if(!file) return;
+  setStatus('Reading ' + file.name + ' …','');
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    try{
+      const wb = XLSX.read(ev.target.result, {type:'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {defval:''});
+      const mapped = mapRows(rows);
+      if(!mapped.length) throw new Error('No usable rows found.');
+      setData(mapped);
+      setStatus('Loaded ' + mapped.length + ' rows from ' + file.name, 'ok');
+      try{ localStorage.setItem('partnerDashboardData', JSON.stringify(mapped)); }catch(err){}
+    }catch(err){
+      setStatus('Could not read file: ' + err.message, 'err');
+    }
+  };
+  reader.onerror = function(){ setStatus('Could not read the file.', 'err'); };
+  reader.readAsArrayBuffer(file);
+});
+
+document.getElementById('templateBtn').addEventListener('click', function(){
+  const headers = ['Date','New Partners Added','Reached Out (New)','Reached Out (Follow-up)','Meetings','Meeting Names','Education Fair Partners','Channel Partners'];
+  const sample = ['01-10-2026','5','8','3','1','Example Partner','0','0'];
+  const csv = headers.join(',') + '\n' + sample.join(',') + '\n';
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'partner_dashboard_template.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+});
+
+document.getElementById('resetBtn').addEventListener('click', function(){
+  try{ localStorage.removeItem('partnerDashboardData'); }catch(err){}
+  setData(SEED);
+  setStatus('Showing sample data (08 Jul – 28 Sep 2026)', '');
+});
+
+document.getElementById('fromDate').addEventListener('change', applyFilters);
+document.getElementById('toDate').addEventListener('change', applyFilters);
+document.querySelectorAll('[data-preset]').forEach(btn=>{
+  btn.addEventListener('click', function(){
+    const p = this.getAttribute('data-preset');
+    const parsedDates = CURRENT.map(d=>parseDMY(d.date)).filter(Boolean);
+    if(!parsedDates.length) return;
+    const maxD = parsedDates[parsedDates.length-1], minD = parsedDates[0];
+    const fromEl = document.getElementById('fromDate'), toEl = document.getElementById('toDate');
+    toEl.value = toISO(maxD);
+    if(p==='all'){ fromEl.value = toISO(minD); }
+    else{
+      const days = Number(p);
+      const from = new Date(maxD); from.setDate(from.getDate() - (days-1));
+      fromEl.value = toISO(from < minD ? minD : from);
+    }
+    applyFilters();
+  });
+});
+
+// init: restore last upload if present, else seed
+(function init(){
+  let initial = SEED;
+  try{
+    const saved = localStorage.getItem('partnerDashboardData');
+    if(saved){ const parsed = JSON.parse(saved); if(Array.isArray(parsed) && parsed.length){ initial = parsed; setStatus('Loaded your last uploaded sheet (' + parsed.length + ' rows)', 'ok'); } }
+  }catch(err){}
+  if(initial === SEED) setStatus('Showing sample data (08 Jul – 28 Sep 2026)', '');
+  setData(initial);
+})();
+</script>
+</body>
+</html>
